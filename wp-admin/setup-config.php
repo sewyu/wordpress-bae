@@ -112,10 +112,8 @@ switch($step) {
 <p><?php _e( 'Welcome to WordPress. Before getting started, we need some information on the database. You will need to know the following items before proceeding.' ) ?></p>
 <ol>
 	<li><?php _e( 'Database name' ); ?></li>
-	<li><?php _e( 'Database username' ); ?></li>
-	<li><?php _e( 'Database password' ); ?></li>
-	<li><?php _e( 'Database host' ); ?></li>
 	<li><?php _e( 'Table prefix (if you want to run more than one WordPress in a single database)' ); ?></li>
+	<li><?php _e( 'BCMS queue name (用于发送邮件，<a href="http://developer.baidu.com/bae/bms/list/" target="_blank">点击获取</a>)' ); ?></li>
 </ol>
 <p><strong><?php _e( "If for any reason this automatic file creation doesn&#8217;t work, don&#8217;t worry. All this does is fill in the database information to a configuration file. You may also simply open <code>wp-config-sample.php</code> in a text editor, fill in your information, and save it as <code>wp-config.php</code>." ); ?></strong></p>
 <p><?php _e( "In all likelihood, these items were supplied to you by your Web Host. If you do not have this information, then you will need to contact them before you can continue. If you&#8217;re all ready&hellip;" ); ?></p>
@@ -136,24 +134,14 @@ switch($step) {
 			<td><?php _e( 'The name of the database you want to run WP in.' ); ?></td>
 		</tr>
 		<tr>
-			<th scope="row"><label for="uname"><?php _e( 'User Name' ); ?></label></th>
-			<td><input name="uname" id="uname" type="text" size="25" value="<?php echo htmlspecialchars( _x( 'username', 'example username' ), ENT_QUOTES ); ?>" /></td>
-			<td><?php _e( 'Your MySQL username' ); ?></td>
-		</tr>
-		<tr>
-			<th scope="row"><label for="pwd"><?php _e( 'Password' ); ?></label></th>
-			<td><input name="pwd" id="pwd" type="text" size="25" value="<?php echo htmlspecialchars( _x( 'password', 'example password' ), ENT_QUOTES ); ?>" /></td>
-			<td><?php _e( '&hellip;and your MySQL password.' ); ?></td>
-		</tr>
-		<tr>
-			<th scope="row"><label for="dbhost"><?php _e( 'Database Host' ); ?></label></th>
-			<td><input name="dbhost" id="dbhost" type="text" size="25" value="localhost" /></td>
-			<td><?php _e( 'You should be able to get this info from your web host, if <code>localhost</code> does not work.' ); ?></td>
-		</tr>
-		<tr>
 			<th scope="row"><label for="prefix"><?php _e( 'Table Prefix' ); ?></label></th>
 			<td><input name="prefix" id="prefix" type="text" value="wp_" size="25" /></td>
 			<td><?php _e( 'If you want to run multiple WordPress installations in a single database, change this.' ); ?></td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="bcmsqueuename"><?php _e( 'BCMS Queue name' ); ?></label></th>
+			<td><input name="bcmsqueuename" id="bcmsqueuename" type="text" value="" size="50" /></td>
+			<td><?php _e( '如果你希望使用邮件功能，请输入' ); ?><a href="http://developer.baidu.com/bae/bms/list/" target="_blank">消息队列名称</a></td>
 		</tr>
 	</table>
 	<?php if ( isset( $_GET['noapi'] ) ) { ?><input name="noapi" type="hidden" value="1" /><?php } ?>
@@ -163,7 +151,7 @@ switch($step) {
 	break;
 
 	case 2:
-	foreach ( array( 'dbname', 'uname', 'pwd', 'dbhost', 'prefix' ) as $key )
+	foreach ( array( 'dbname', 'prefix', "bcmsqueuename" ) as $key )
 		$$key = trim( wp_unslash( $_POST[ $key ] ) );
 
 	$tryagain_link = '</p><p class="step"><a href="setup-config.php?step=1" onclick="javascript:history.go(-1);return false;" class="button button-large">' . __( 'Try again' ) . '</a>';
@@ -180,9 +168,10 @@ switch($step) {
 	 * @ignore
 	 */
 	define('DB_NAME', $dbname);
-	define('DB_USER', $uname);
-	define('DB_PASSWORD', $pwd);
-	define('DB_HOST', $dbhost);
+	define('DB_USER', getenv('HTTP_BAE_ENV_AK'));
+	define('DB_PASSWORD', getenv('HTTP_BAE_ENV_SK'));
+	define('DB_HOST', getenv('HTTP_BAE_ENV_ADDR_SQL_IP') . ":" . getenv('HTTP_BAE_ENV_ADDR_SQL_PORT'));
+	define('BCMS_QUEUE', $bcmsqueuename);
 	/**#@-*/
 
 	// We'll fail here if the values are no good.
@@ -238,6 +227,7 @@ switch($step) {
 			case 'DB_USER'     :
 			case 'DB_PASSWORD' :
 			case 'DB_HOST'     :
+			case 'BCMS_QUEUE'     :
 				$config_file[ $line_num ] = "define('" . $constant . "'," . $padding . "'" . addcslashes( constant( $constant ), "\\'" ) . "');\r\n";
 				break;
 			case 'AUTH_KEY'         :
@@ -254,7 +244,7 @@ switch($step) {
 	}
 	unset( $line );
 
-	if ( ! is_writable(ABSPATH) ) :
+
 		setup_config_display_header();
 ?>
 <p><?php _e( "Sorry, but I can&#8217;t write the <code>wp-config.php</code> file." ); ?></p>
@@ -274,20 +264,6 @@ el.select();
 })();
 </script>
 <?php
-	else :
-		$handle = fopen(ABSPATH . 'wp-config.php', 'w');
-		foreach( $config_file as $line ) {
-			fwrite($handle, $line);
-		}
-		fclose($handle);
-		chmod(ABSPATH . 'wp-config.php', 0666);
-		setup_config_display_header();
-?>
-<p><?php _e( "All right, sparky! You&#8217;ve made it through this part of the installation. WordPress can now communicate with your database. If you are ready, time now to&hellip;" ); ?></p>
-
-<p class="step"><a href="install.php" class="button button-large"><?php _e( 'Run the install' ); ?></a></p>
-<?php
-	endif;
 	break;
 }
 ?>

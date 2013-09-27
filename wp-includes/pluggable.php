@@ -174,6 +174,109 @@ function cache_users( $user_ids ) {
 }
 endif;
 
+/**
+ * Send Mail 
+ * BCMS 
+ */
+if ( !function_exists( 'wp_mail' ) ) :
+function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ) {
+    // Headers
+    if ( empty( $headers ) ) {
+        $headers = array();
+    } else {
+        if ( !is_array( $headers ) ) {
+            // Explode the headers out, so this function can take both
+            // string headers and an array of headers.
+            $tempheaders = explode( "\n", str_replace( "\r\n", "\n", $headers ) );
+        } else {
+            $tempheaders = $headers;
+        }
+        $headers = array();
+  
+        // If it's actually got contents
+        if ( !empty( $tempheaders ) ) {
+            // Iterate through the raw headers
+            foreach ( (array) $tempheaders as $header ) {
+                // Explode them out
+                list( $name, $content ) = explode( ':', trim( $header ), 2 );
+  
+                // Cleanup crew
+                $name    = trim( $name    );
+                $content = trim( $content );
+  
+                switch ( strtolower( $name ) ) {
+                    // Mainly for legacy -- process a From: header if it's there
+                    case 'from':
+                        if ( strpos($content, '<' ) !== false ) {
+                            // So... making my life hard again?
+                            $from_name = substr( $content, 0, strpos( $content, '<' ) - 1 );
+                            $from_name = str_replace( '"', '', $from_name );
+                            $from_name = trim( $from_name );
+  
+                            $from_email = substr( $content, strpos( $content, '<' ) + 1 );
+                            $from_email = str_replace( '>', '', $from_email );
+                            $from_email = trim( $from_email );
+                        } else {
+                            $from_email = trim( $content );
+                        }
+                        break;
+                    case 'content-type':
+                        if ( strpos( $content, ';' ) !== false ) {
+                            list( $type, $charset ) = explode( ';', $content );
+                            $content_type = trim( $type );
+                        } else {
+                            $content_type = trim( $content );
+                        }
+                        break;
+                     
+                }
+            }
+        }
+    }
+     
+    /* If we don't have an email from the input headers default to wordpress@$sitename
+     * Some hosts will block outgoing mail from this address if it doesn't exist but
+     * there's no easy alternative. Defaulting to admin_email might appear to be another
+     * option but some hosts may refuse to relay mail from an unknown domain. See
+     * http://trac.wordpress.org/ticket/5007.
+     */
+  
+    if ( !isset( $from_email ) ) {
+        // Get the site domain and get rid of www.
+        $sitename = strtolower( $_SERVER['SERVER_NAME'] );
+        if ( substr( $sitename, 0, 4 ) == 'www.' ) {
+            $sitename = substr( $sitename, 4 );
+        }
+  
+        $from_email = 'no-reply@' . $sitename;
+    }
+     
+    // Set Content-Type and charset
+    // If we don't have a content-type from the input headers
+    if ( !isset( $content_type ) )
+        $content_type = 'text/plain';
+  
+    $content_type = apply_filters( 'wp_mail_content_type', $content_type );
+    if($content_type == 'text/html') {
+        $header = "<!--HTML-->";
+    }
+     
+    // 重复引用，BaeException就是这里报的
+    // require_once ABSPATH . WPINC . '/Bcms.class.php';
+    $bcms = new Bcms () ;
+     
+    // 利用bcms发信
+    $ret = $bcms->mail ( BCMS_QUEUE, $header.$message, array($to), array( Bcms::FROM=>$from_email ,Bcms::MAIL_SUBJECT => $subject)) ;
+ 
+    // 返回值
+    if ( false === $ret ) {
+        return false;
+    } else {
+        return true;
+    }
+}
+endif;
+
 if ( !function_exists( 'wp_mail' ) ) :
 /**
  * Send mail, similar to PHP's mail

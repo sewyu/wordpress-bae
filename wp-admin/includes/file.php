@@ -327,7 +327,8 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
 	$filename = wp_unique_filename( $uploads['path'], $file['name'], $unique_filename_callback );
 
 	// Move the file to the uploads dir
-	$new_file = $uploads['path'] . "/$filename";
+	$hiPath = sys_get_temp_dir();
+	$new_file = $hiPath . "/$filename";
 	if ( false === @ move_uploaded_file( $file['tmp_name'], $new_file ) ) {
 		if ( 0 === strpos( $uploads['basedir'], ABSPATH ) )
 			$error_path = str_replace( ABSPATH, '', $uploads['basedir'] ) . $uploads['subdir'];

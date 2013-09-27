@@ -1160,11 +1160,11 @@ class wpdb {
 			return;
 		}
 
-		$this->set_charset( $this->dbh );
-
 		$this->ready = true;
 
 		$this->select( $this->dbname, $this->dbh );
+		
+		$this->set_charset( $this->dbh );
 	}
 
 	/**
